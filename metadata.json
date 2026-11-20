@@ -1,0 +1,6 @@
+{
+  "name": "CampusKart",
+  "description": "Fast campus delivery store for students in Dehradun — snacks, drinks, stationery, and toiletries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
