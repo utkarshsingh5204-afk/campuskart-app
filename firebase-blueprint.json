@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "A student campus delivery order placed on CampusKart.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the student who placed the order",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of the student",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the student",
+          "maxLength": 254
+        },
+        "items": {
+          "type": "array",
+          "description": "List of ordered products and quantities"
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Sum of item prices before delivery fee"
+        },
+        "deliveryFee": {
+          "type": "number",
+          "description": "Delivery fee (0 if subtotal > 199, otherwise 15)"
+        },
+        "total": {
+          "type": "number",
+          "description": "Grand total equal to subtotal + deliveryFee"
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the order was created"
+        },
+        "createdAtMs": {
+          "type": "number",
+          "description": "Client epoch timestamp in milliseconds for immediate sorting"
+        }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "email",
+        "items",
+        "subtotal",
+        "deliveryFee",
+        "total",
+        "time",
+        "createdAtMs"
+      ]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "CampusKart customer orders, readable and creatable only by the owning authenticated user."
+    }
+  }
+}

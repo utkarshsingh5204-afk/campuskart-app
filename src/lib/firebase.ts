@@ -156,11 +156,15 @@ export async function placeOrder(params: {
   const { user, items, subtotal, deliveryFee, total } = params;
   const ordersPath = 'orders';
 
+  const rawName = (user.displayName || getFirstName(user) || 'Student').trim();
+  const safeUserName = rawName.slice(0, 120) || 'Student';
+  const safeEmail = (user.email || '').trim().slice(0, 254);
+
   const payload = {
     userId: user.uid,
-    userName: user.displayName || getFirstName(user),
-    email: user.email || '',
-    items: items.map((item) => ({
+    userName: safeUserName,
+    email: safeEmail,
+    items: items.slice(0, 50).map((item) => ({
       id: item.id,
       name: item.name,
       category: item.category,

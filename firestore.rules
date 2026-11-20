@@ -1,16 +1,99 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Default-deny safety net for all collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string
+        && id.size() > 0
+        && id.size() <= 128
+        && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidOrderItem(item) {
+      return item is map
+        && item.keys().hasAll(['id', 'name', 'category', 'emoji', 'price', 'quantity'])
+        && item.keys().hasOnly(['id', 'name', 'category', 'emoji', 'price', 'quantity'])
+        && item.id is string && item.id.size() > 0 && item.id.size() <= 64
+        && item.name is string && item.name.size() > 0 && item.name.size() <= 100
+        && item.category in ['Snacks', 'Drinks', 'Stationery', 'Toiletries']
+        && item.emoji is string && item.emoji.size() > 0 && item.emoji.size() <= 16
+        && item.price is number && item.price > 0 && item.price <= 10000
+        && item.quantity is int && item.quantity >= 1 && item.quantity <= 100;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+          'userId', 'userName', 'email', 'items',
+          'subtotal', 'deliveryFee', 'total', 'time', 'createdAtMs'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'userName', 'email', 'items',
+          'subtotal', 'deliveryFee', 'total', 'time', 'createdAtMs'
+        ])
+        // Ownership & identity integrity
+        && data.userId is string
+        && data.userId == request.auth.uid
+        && data.userId.size() > 0
+        && data.userId.size() <= 128
+        && data.userName is string
+        && data.userName.size() > 0
+        && data.userName.size() <= 120
+        && data.email is string
+        && data.email.size() <= 254
+        && (data.email == '' || data.email == request.auth.token.email)
+        // Bounded items validation
+        && data.items is list
+        && data.items.size() >= 1
+        && data.items.size() <= 50
+        && isValidOrderItem(data.items[0])
+        // Pricing & delivery fee integrity (free above ₹199, else ₹15)
+        && data.subtotal is number
+        && data.subtotal > 0
+        && data.subtotal <= 500000
+        && data.deliveryFee is number
+        && ((data.subtotal > 199 && data.deliveryFee == 0)
+          || (data.subtotal <= 199 && data.deliveryFee == 15))
+        && data.total is number
+        && data.total == data.subtotal + data.deliveryFee
+        // Server timestamp integrity
+        && data.time == request.time
+        && data.createdAtMs is int
+        && data.createdAtMs > 0;
+    }
+
+    // Orders collection: users can only create and read their own orders
     match /orders/{orderId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.items is list
-        && request.resource.data.items.size() > 0
-        && request.resource.data.total is number
-        && request.resource.data.total > 0
-        && request.resource.data.deliveryFee is number
-        && request.resource.data.deliveryFee >= 0;
+      allow get: if isSignedIn()
+        && isValidId(orderId)
+        && existing().userId == request.auth.uid;
+
+      allow list: if isSignedIn()
+        && existing().userId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidOrder(incoming());
+
       allow update, delete: if false;
     }
   }
